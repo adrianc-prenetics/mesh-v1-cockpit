@@ -6,6 +6,6 @@
   "outputDirectory": ".next",
   "installCommand": "npm install",
   "env": {
-    "NEXT_PUBLIC_MESH_API": "@MESH_API_URL"
+    "NEXT_PUBLIC_MESH_API": "https://api.mesh.local"
   }
 }
