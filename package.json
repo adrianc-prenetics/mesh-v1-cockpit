@@ -1,0 +1,25 @@
+{
+  "name": "mesh-v1-cockpit",
+  "version": "1.0.0",
+  "description": "THE MESH visual cockpit — Adrian + Kev + Claude decision kernel",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "api": "node api/server.js"
+  },
+  "dependencies": {
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "axios": "^1.6.0",
+    "ws": "^8.14.0",
+    "zustand": "^4.4.0"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.0",
+    "postcss": "^8.4.31",
+    "autoprefixer": "^10.4.16"
+  }
+}

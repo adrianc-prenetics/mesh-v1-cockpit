@@ -1,0 +1,11 @@
+{
+  "projectSettings": {
+    "nodeVersion": "22.x"
+  },
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "installCommand": "npm install",
+  "env": {
+    "NEXT_PUBLIC_MESH_API": "@MESH_API_URL"
+  }
+}
