@@ -35,11 +35,13 @@ const STATUS_CONFIG: Record<PulseStatus, { color: string; glow: string; label: s
 
 // ─── Pulse row ──────────────────────────────────────────────────────────────
 
-function PulseRow({ pulse, index }: { pulse: SystemPulse; index: number }) {
+const UNWIRED_CONFIG = { color: "#52525b", glow: "none", label: "NOT WIRED" };
+
+function PulseRow({ pulse, index, wired = true }: { pulse: SystemPulse; index: number; wired?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const [age, setAge] = useState(formatAge(pulse.lastMotionAt));
-  const status = getStatus(pulse);
-  const config = STATUS_CONFIG[status];
+  const status = wired ? getStatus(pulse) : ("unwired" as PulseStatus);
+  const config = wired ? STATUS_CONFIG[status] : UNWIRED_CONFIG;
 
   // Tick the age counter
   useEffect(() => {
@@ -83,8 +85,14 @@ function PulseRow({ pulse, index }: { pulse: SystemPulse; index: number }) {
 
           {/* Age — the core signal */}
           <span className="text-lg font-mono font-semibold tabular-nums text-white/90 flex-1">
-            {age}
-            <span className="text-[10px] text-white/25 ml-1.5 font-sans tracking-wider">ago</span>
+            {wired ? (
+              <>
+                {age}
+                <span className="text-[10px] text-white/25 ml-1.5 font-sans tracking-wider">ago</span>
+              </>
+            ) : (
+              <span className="text-[11px] text-white/20 font-sans tracking-wider">—</span>
+            )}
           </span>
 
           {/* Status badge */}
@@ -139,14 +147,18 @@ function PulseRow({ pulse, index }: { pulse: SystemPulse; index: number }) {
 
 // ─── Kill Switch ────────────────────────────────────────────────────────────
 
-function getOverallStatus(systems: SystemPulse[]): PulseStatus {
-  const statuses = systems.map(getStatus);
+export type SystemPulseWithWired = SystemPulse & { wired?: boolean };
+
+function getOverallStatus(systems: SystemPulseWithWired[]): PulseStatus {
+  const wiredSystems = systems.filter((s) => s.wired !== false);
+  if (wiredSystems.length === 0) return "dead";
+  const statuses = wiredSystems.map(getStatus);
   if (statuses.includes("dead")) return "dead";
   if (statuses.includes("stale")) return "stale";
   return "alive";
 }
 
-export function KillSwitch({ systems }: { systems: SystemPulse[] }) {
+export function KillSwitch({ systems }: { systems: SystemPulseWithWired[] }) {
   const [, setTick] = useState(0);
   const overall = getOverallStatus(systems);
   const config = STATUS_CONFIG[overall];
@@ -157,8 +169,9 @@ export function KillSwitch({ systems }: { systems: SystemPulse[] }) {
     return () => clearInterval(interval);
   }, []);
 
-  const aliveCount = systems.filter((s) => getStatus(s) === "alive").length;
-  const totalCount = systems.length;
+  const wiredSystems = systems.filter((s) => s.wired !== false);
+  const aliveCount = wiredSystems.filter((s) => getStatus(s) === "alive").length;
+  const totalCount = wiredSystems.length;
 
   return (
     <div className="w-full max-w-lg mx-auto">
@@ -224,7 +237,7 @@ export function KillSwitch({ systems }: { systems: SystemPulse[] }) {
       {/* System pulses — the detail */}
       <div>
         {systems.map((pulse, i) => (
-          <PulseRow key={pulse.id} pulse={pulse} index={i} />
+          <PulseRow key={pulse.id} pulse={pulse} index={i} wired={pulse.wired !== false} />
         ))}
       </div>
     </div>
