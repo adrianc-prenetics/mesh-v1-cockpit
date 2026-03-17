@@ -20,17 +20,26 @@ function AmbientGlow({ status }: { status: "alive" | "stale" | "dead" | "loading
   const color = colorMap[status];
 
   return (
-    <motion.div
-      className="fixed inset-0 pointer-events-none z-[-1]"
-      animate={{
-        background: [
-          `radial-gradient(ellipse 70% 50% at 50% 20%, ${color}, transparent)`,
-          `radial-gradient(ellipse 80% 60% at 50% 25%, ${color}, transparent)`,
-          `radial-gradient(ellipse 70% 50% at 50% 20%, ${color}, transparent)`,
-        ],
-      }}
-      transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-    />
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={status}
+        className="fixed inset-0 pointer-events-none z-[-1]"
+        initial={{ opacity: 0 }}
+        animate={{
+          opacity: 1,
+          background: [
+            `radial-gradient(ellipse 70% 50% at 50% 20%, ${color}, transparent)`,
+            `radial-gradient(ellipse 80% 60% at 50% 25%, ${color}, transparent)`,
+            `radial-gradient(ellipse 70% 50% at 50% 20%, ${color}, transparent)`,
+          ],
+        }}
+        exit={{ opacity: 0 }}
+        transition={{
+          opacity: { duration: 0.4, ease: "easeOut" },
+          background: { duration: 8, repeat: Infinity, ease: "easeInOut" },
+        }}
+      />
+    </AnimatePresence>
   );
 }
 
