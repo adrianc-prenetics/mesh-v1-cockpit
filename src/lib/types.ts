@@ -1,57 +1,22 @@
-// ─── THE MESH Cockpit — Core Types ───────────────────────────────────────────
+// ─── THE MESH Kill Switch — Core Types ──────────────────────────────────────
 
-export type NodeRole = "adrian" | "kev" | "claude";
+export type SystemId = "claude" | "kev" | "queue" | "deploys" | "im8";
 
-export type NodeStatus = "active" | "idle" | "thinking" | "offline";
+export type PulseStatus = "alive" | "stale" | "dead";
 
-export type SignalType = "message" | "decision" | "heartbeat" | "alert";
-
-export interface OrbitalNodeData {
-  id: NodeRole;
+export interface SystemPulse {
+  id: SystemId;
   label: string;
-  status: NodeStatus;
-  /** Orbital angle in degrees — set by the layout clock */
-  angle: number;
-  /** Orbital radius as percentage of container */
-  radius: number;
-  /** Accent color */
-  color: string;
-  /** Last active timestamp (ISO) */
-  lastActive: string;
-  /** Signal strength 0-1 (exponential decay from last activity) */
-  signal: number;
+  /** What the last motion was */
+  lastMotion: string;
+  /** ISO timestamp of last motion */
+  lastMotionAt: string;
+  /** Seconds before "stale", seconds before "dead" */
+  thresholds: { stale: number; dead: number };
 }
 
-export interface MeshMessage {
-  id: string;
-  from: NodeRole;
-  content: string;
-  timestamp: string;
-  type: "text" | "decision" | "system";
-}
-
-export interface Decision {
-  id: string;
-  title: string;
-  proposedBy: NodeRole;
-  status: "pending" | "approved" | "rejected" | "deferred";
-  votes: Partial<Record<NodeRole, "approve" | "reject" | "defer">>;
-  createdAt: string;
-  resolvedAt?: string;
-}
-
-export interface SystemMetric {
-  label: string;
-  value: number;
-  max: number;
-  unit: string;
-  status: "nominal" | "warning" | "critical";
-}
-
-export interface MeshState {
-  nodes: OrbitalNodeData[];
-  messages: MeshMessage[];
-  decisions: Decision[];
-  metrics: SystemMetric[];
-  phaseAngle: number;
+export interface KillSwitchState {
+  systems: SystemPulse[];
+  /** ISO timestamp of when this state was computed */
+  asOf: string;
 }

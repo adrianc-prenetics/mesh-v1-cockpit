@@ -1,108 +1,42 @@
-import type { MeshMessage, Decision, SystemMetric, OrbitalNodeData } from "./types";
+import type { SystemPulse } from "./types";
 
-export const NODES: OrbitalNodeData[] = [
+// Mock: simulate real system pulse data.
+// In production these come from an API that checks actual last-motion timestamps.
+
+export const SYSTEMS: SystemPulse[] = [
   {
-    id: "adrian",
-    label: "Adrian",
-    status: "active",
-    angle: 0,
-    radius: 38,
-    color: "#a78bfa", // violet-400
-    lastActive: new Date().toISOString(),
-    signal: 1.0,
+    id: "claude",
+    label: "Claude",
+    lastMotion: "Executor fired — reviewed PR #47",
+    lastMotionAt: new Date(Date.now() - 12_000).toISOString(), // 12s ago
+    thresholds: { stale: 300, dead: 900 }, // 5m stale, 15m dead
   },
   {
     id: "kev",
     label: "Kev",
-    status: "idle",
-    angle: 120,
-    radius: 38,
-    color: "#34d399", // emerald-400
-    lastActive: new Date(Date.now() - 120_000).toISOString(),
-    signal: 0.7,
+    lastMotion: "Discord message in #mesh-ops",
+    lastMotionAt: new Date(Date.now() - 127_000).toISOString(), // ~2m ago
+    thresholds: { stale: 600, dead: 3600 }, // 10m stale, 1h dead
   },
   {
-    id: "claude",
-    label: "Claude",
-    status: "thinking",
-    angle: 240,
-    radius: 38,
-    color: "#60a5fa", // blue-400
-    lastActive: new Date(Date.now() - 5_000).toISOString(),
-    signal: 0.95,
-  },
-];
-
-export const MESSAGES: MeshMessage[] = [
-  {
-    id: "m1",
-    from: "adrian",
-    content: "Rebuild the cockpit. Vercel-meets-Linear quality. Ship it.",
-    timestamp: new Date(Date.now() - 300_000).toISOString(),
-    type: "decision",
+    id: "queue",
+    label: "Queue",
+    lastMotion: "Decision resolved — cockpit architecture approved",
+    lastMotionAt: new Date(Date.now() - 310_000).toISOString(), // ~5m ago
+    thresholds: { stale: 1800, dead: 7200 }, // 30m stale, 2h dead
   },
   {
-    id: "m2",
-    from: "claude",
-    content: "CSS keyframes for orbital animation. rAF orchestrator deferred to v2.",
-    timestamp: new Date(Date.now() - 240_000).toISOString(),
-    type: "text",
+    id: "deploys",
+    label: "Deploys",
+    lastMotion: "mesh-v1-cockpit deployed to Vercel",
+    lastMotionAt: new Date(Date.now() - 3_420_000).toISOString(), // ~57m ago
+    thresholds: { stale: 7200, dead: 86400 }, // 2h stale, 24h dead
   },
   {
-    id: "m3",
-    from: "kev",
-    content: "Copy. Standing by until Claude ships.",
-    timestamp: new Date(Date.now() - 200_000).toISOString(),
-    type: "text",
+    id: "im8",
+    label: "IM8",
+    lastMotion: "3 orders processed — $247 revenue",
+    lastMotionAt: new Date(Date.now() - 10_800_000).toISOString(), // 3h ago
+    thresholds: { stale: 14400, dead: 86400 }, // 4h stale, 24h dead
   },
-  {
-    id: "m4",
-    from: "claude",
-    content: "Executing. App Router scaffold, glassmorphism cards, three orbital nodes.",
-    timestamp: new Date(Date.now() - 60_000).toISOString(),
-    type: "system",
-  },
-  {
-    id: "m5",
-    from: "adrian",
-    content: "Go. 5 minutes.",
-    timestamp: new Date(Date.now() - 30_000).toISOString(),
-    type: "decision",
-  },
-];
-
-export const DECISIONS: Decision[] = [
-  {
-    id: "d1",
-    title: "Rebuild cockpit with Next.js 15 App Router",
-    proposedBy: "adrian",
-    status: "approved",
-    votes: { adrian: "approve", kev: "approve", claude: "approve" },
-    createdAt: new Date(Date.now() - 600_000).toISOString(),
-    resolvedAt: new Date(Date.now() - 300_000).toISOString(),
-  },
-  {
-    id: "d2",
-    title: "Use CSS keyframes over rAF for v1 orbital animation",
-    proposedBy: "claude",
-    status: "approved",
-    votes: { claude: "approve", kev: "approve" },
-    createdAt: new Date(Date.now() - 240_000).toISOString(),
-    resolvedAt: new Date(Date.now() - 200_000).toISOString(),
-  },
-  {
-    id: "d3",
-    title: "Deploy to Vercel with custom domain",
-    proposedBy: "kev",
-    status: "pending",
-    votes: { kev: "approve" },
-    createdAt: new Date(Date.now() - 60_000).toISOString(),
-  },
-];
-
-export const METRICS: SystemMetric[] = [
-  { label: "Coherence", value: 94, max: 100, unit: "%", status: "nominal" },
-  { label: "Latency", value: 42, max: 200, unit: "ms", status: "nominal" },
-  { label: "Decisions/hr", value: 8, max: 20, unit: "", status: "nominal" },
-  { label: "Signal Decay", value: 0.12, max: 1, unit: "τ", status: "warning" },
 ];

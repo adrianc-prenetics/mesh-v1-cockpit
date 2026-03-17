@@ -33,23 +33,7 @@ body::before {
   background-size: 256px;
 }
 
-@keyframes orbit {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.animate-orbit {
-  animation: orbit 120s linear infinite;
-}
-
-/* Counter-rotate children so they stay upright */
-.animate-orbit > * {
-  animation: orbit 120s linear infinite reverse;
-}
+/* No orbit animation — state-driven pulses only via framer-motion */
 
 /* Custom scrollbar */
 .scrollbar-thin::-webkit-scrollbar {
