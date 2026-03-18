@@ -13,12 +13,33 @@ export interface SystemPulse {
   lastMotionAt: string;
   /** Seconds before "stale", seconds before "dead" */
   thresholds: { stale: number; dead: number };
+  /** Whether this system has a live data source wired */
+  wired?: boolean;
 }
 
 export interface KillSwitchState {
   systems: SystemPulse[];
   /** ISO timestamp of when this state was computed */
   asOf: string;
+}
+
+// ─── Execution Context Types ────────────────────────────────────────────────
+
+export interface ExecutionContextData {
+  taskId: string;
+  artifact: string;
+  reasoning: string;
+  confidence: number;
+  timestamp: string;
+  status: "active" | "paused" | "complete";
+}
+
+export interface PauseAckData {
+  taskId: string;
+  artifact: string;
+  reasoning: string;
+  confidence: number;
+  options?: Array<{ id: string; description: string }>;
 }
 
 // ─── Decision Queue Types ───────────────────────────────────────────────────

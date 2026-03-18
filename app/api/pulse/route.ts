@@ -107,6 +107,7 @@ const SYSTEM_CONFIGS = [
   { id: "kev", label: "Kev", fetcher: getKev, thresholds: { stale: 3600, dead: 14400 } },
   { id: "queue", label: "Queue", fetcher: getQueue, thresholds: { stale: 7200, dead: 86400 } },
   { id: "deploys", label: "Deploys", fetcher: getDeploys, thresholds: { stale: 7200, dead: 86400 } },
+  { id: "im8", label: "IM8", fetcher: async () => null, thresholds: { stale: 14400, dead: 86400 } },
 ] as const;
 
 // ─── Route handler ──────────────────────────────────────────────────────────

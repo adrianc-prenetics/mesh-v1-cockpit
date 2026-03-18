@@ -1,16 +1,26 @@
 "use client";
 
-import { useReducer, useEffect, useCallback, useRef } from "react";
+import { useReducer, useEffect, useCallback, useRef, useState } from "react";
 import type {
   CockpitState,
   Decision,
   DecisionPriority,
+  ExecutionContextData,
   FrictionEntry,
+  PauseAckData,
+  SystemPulse,
 } from "../lib/types";
 import {
   mockCockpitState,
   frictionPool,
 } from "../lib/mock-decisions";
+
+// Re-export for backward compatibility
+export type { ExecutionContextData, PauseAckData } from "../lib/types";
+
+// ─── Connection Status ──────────────────────────────────────────────────────
+
+export type ConnectionStatus = "connecting" | "live" | "offline";
 
 // ─── Action Types ───────────────────────────────────────────────────────────
 
@@ -19,14 +29,27 @@ type CockpitAction =
   | { type: "OVERRIDE_DECISION"; id: string }
   | { type: "REPRIORITIZE"; id: string; priority: DecisionPriority }
   | { type: "ADJUST_AUTONOMY"; ceiling: number }
-  | { type: "ADD_FRICTION"; entry: FrictionEntry };
+  | { type: "ADD_FRICTION"; entry: FrictionEntry }
+  | { type: "SET_EXECUTION_CONTEXT"; context: ExecutionContextData | null }
+  | { type: "SET_PAUSE_ACK"; ack: PauseAckData | null }
+  | { type: "SYNC_SYSTEMS"; systems: SystemPulse[]; asOf: string }
+  | { type: "RESUME_TASK"; taskId: string }
+  | { type: "TOGGLE_AUTO_COMMIT" }
+  | { type: "SET_CONSOLIDATION_SPEED"; speed: "slow" | "normal" | "fast" };
+
+// ─── Extended Cockpit State ─────────────────────────────────────────────────
+
+interface ExtendedCockpitState extends CockpitState {
+  executionContext: ExecutionContextData | null;
+  pauseAck: PauseAckData | null;
+}
 
 // ─── Reducer ────────────────────────────────────────────────────────────────
 
 function cockpitReducer(
-  state: CockpitState,
+  state: ExtendedCockpitState,
   action: CockpitAction
-): CockpitState {
+): ExtendedCockpitState {
   switch (action.type) {
     case "TICK": {
       let changed = false;
@@ -134,6 +157,60 @@ function cockpitReducer(
       };
     }
 
+    case "SET_EXECUTION_CONTEXT": {
+      return {
+        ...state,
+        executionContext: action.context,
+      };
+    }
+
+    case "SET_PAUSE_ACK": {
+      return {
+        ...state,
+        pauseAck: action.ack,
+      };
+    }
+
+    case "SYNC_SYSTEMS": {
+      return {
+        ...state,
+        systems: action.systems,
+        asOf: action.asOf,
+      };
+    }
+
+    case "RESUME_TASK": {
+      return {
+        ...state,
+        pauseAck: null,
+        executionContext: state.executionContext
+          ? { ...state.executionContext, status: "active" as const }
+          : null,
+      };
+    }
+
+    case "TOGGLE_AUTO_COMMIT": {
+      return {
+        ...state,
+        autonomy: {
+          ...state.autonomy,
+          autoCommitEnabled: !state.autonomy.autoCommitEnabled,
+        },
+        asOf: new Date().toISOString(),
+      };
+    }
+
+    case "SET_CONSOLIDATION_SPEED": {
+      return {
+        ...state,
+        autonomy: {
+          ...state.autonomy,
+          consolidationSpeed: action.speed,
+        },
+        asOf: new Date().toISOString(),
+      };
+    }
+
     default:
       return state;
   }
@@ -142,20 +219,35 @@ function cockpitReducer(
 // ─── Hook ───────────────────────────────────────────────────────────────────
 
 export interface UseCockpitReturn {
-  state: CockpitState;
+  state: ExtendedCockpitState;
   overrideDecision: (id: string) => void;
   reprioritize: (id: string, priority: DecisionPriority) => void;
   adjustAutonomy: (ceiling: number) => void;
+  pause: (taskId: string) => Promise<void>;
+  resume: (taskId: string) => void;
+  toggleAutoCommit: () => void;
+  setConsolidationSpeed: (speed: "slow" | "normal" | "fast") => void;
+  executionContext: ExecutionContextData | null;
+  pauseAck: PauseAckData | null;
+  connectionStatus: ConnectionStatus;
 }
 
 export function useCockpit(): UseCockpitReturn {
-  const [state, dispatch] = useReducer(cockpitReducer, mockCockpitState);
+  const initialState: ExtendedCockpitState = {
+    ...mockCockpitState,
+    executionContext: null,
+    pauseAck: null,
+  };
+
+  const [state, dispatch] = useReducer(cockpitReducer, initialState);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("connecting");
   const poolIndexRef = useRef(0);
   const nextFrictionRef = useRef(
     Date.now() + randomInterval()
   );
+  const sseRef = useRef<EventSource | null>(null);
 
-  // Tick every second -- decrements consolidation timers
+  // Tick every second
   useEffect(() => {
     const interval = setInterval(() => {
       dispatch({ type: "TICK" });
@@ -163,7 +255,37 @@ export function useCockpit(): UseCockpitReturn {
     return () => clearInterval(interval);
   }, []);
 
-  // Periodic friction injection -- checks every second, fires every 8-12s
+  // Live system data from /api/pulse
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetchPulse() {
+      try {
+        const res = await fetch("/api/pulse", { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (mounted && data.systems) {
+          dispatch({
+            type: "SYNC_SYSTEMS",
+            systems: data.systems,
+            asOf: data.asOf || new Date().toISOString(),
+          });
+          setConnectionStatus("live");
+        }
+      } catch {
+        if (mounted) setConnectionStatus("offline");
+      }
+    }
+
+    fetchPulse();
+    const interval = setInterval(fetchPulse, 30_000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Periodic friction injection
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
@@ -186,6 +308,65 @@ export function useCockpit(): UseCockpitReturn {
     return () => clearInterval(interval);
   }, []);
 
+  // SSE listener for pause_ack from Discord bridge
+  useEffect(() => {
+    sseRef.current = new EventSource("/api/mesh-events");
+
+    sseRef.current.addEventListener("pause_ack", (event: Event) => {
+      const customEvent = event as MessageEvent;
+      try {
+        const ack = JSON.parse(customEvent.data) as PauseAckData;
+        dispatch({ type: "SET_PAUSE_ACK", ack });
+      } catch (e) {
+        console.error("Failed to parse pause_ack:", e);
+      }
+    });
+
+    sseRef.current.addEventListener("execution_context", (event: Event) => {
+      const customEvent = event as MessageEvent;
+      try {
+        const context = JSON.parse(customEvent.data) as ExecutionContextData;
+        dispatch({ type: "SET_EXECUTION_CONTEXT", context });
+      } catch (e) {
+        console.error("Failed to parse execution_context:", e);
+      }
+    });
+
+    return () => {
+      if (sseRef.current) {
+        sseRef.current.close();
+      }
+    };
+  }, []);
+
+  const pause = useCallback(async (taskId: string) => {
+    try {
+      const response = await fetch("/api/pause", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskId, source: "cockpit" }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Pause request failed: ${response.statusText}`);
+      }
+    } catch (err) {
+      console.error("Pause error:", err);
+      throw err;
+    }
+  }, []);
+
+  const resume = useCallback((taskId: string) => {
+    dispatch({ type: "RESUME_TASK", taskId });
+
+    // Notify Discord bridge
+    fetch("/api/resume", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ taskId }),
+    }).catch(console.error);
+  }, []);
+
   const overrideDecision = useCallback((id: string) => {
     dispatch({ type: "OVERRIDE_DECISION", id });
   }, []);
@@ -201,11 +382,26 @@ export function useCockpit(): UseCockpitReturn {
     dispatch({ type: "ADJUST_AUTONOMY", ceiling });
   }, []);
 
+  const toggleAutoCommit = useCallback(() => {
+    dispatch({ type: "TOGGLE_AUTO_COMMIT" });
+  }, []);
+
+  const setConsolidationSpeed = useCallback((speed: "slow" | "normal" | "fast") => {
+    dispatch({ type: "SET_CONSOLIDATION_SPEED", speed });
+  }, []);
+
   return {
     state,
     overrideDecision,
     reprioritize,
     adjustAutonomy,
+    pause,
+    resume,
+    toggleAutoCommit,
+    setConsolidationSpeed,
+    executionContext: state.executionContext,
+    pauseAck: state.pauseAck,
+    connectionStatus,
   };
 }
 
